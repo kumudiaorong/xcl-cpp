@@ -1,3 +1,6 @@
-add_library(${PROJECT_NAME} STATIC)
-target_sources(${PROJECT_NAME} PRIVATE xcl.cpp)
-target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+
+add_library(xcl-lib STATIC)
+target_sources(xcl-lib
+    PRIVATE xcl.cpp
+)
+target_include_directories(xcl-lib PUBLIC ${PROJECT_SOURCE_DIR}/include)
