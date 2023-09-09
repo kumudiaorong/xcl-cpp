@@ -41,7 +41,7 @@ namespace xcl {
       } else {
         auto eseq = next.find('=');
         if(eseq == std::string::npos)
-          break;
+          continue;
         std::string key;
         if(auto tmp = next.find(' '); tmp < eseq) {
           key = next.substr(0, tmp);
@@ -51,7 +51,7 @@ namespace xcl {
         auto vtstart = next.find_first_not_of(' ', eseq + 1);
         if(vtstart == std::string::npos || next.length() - vtstart < 1
            || (next[vtstart + 1] != '"' && next[vtstart + 1] != '\''))  // at least 2 characters, e.g. s"
-          break;
+          continue;
         std::variant<std::string, long, unsigned long, float, double> value;
         auto vtv = std::string_view(next);
         switch(vtv[vtstart]) {
@@ -158,24 +158,24 @@ namespace xcl {
     }
     for(auto& [key, value] : sec.kv) {
       os << key << " = ";
-      switch (value.index()) {
-        case 0:
-          os << std::get<std::string>(value);
+      switch(value.index()) {
+        case 0 :
+          os << "s'" << std::get<std::string>(value);
           break;
-        case 1:
-          os << std::get<long>(value);
+        case 1 :
+          os << "i'" << std::get<long>(value);
           break;
-        case 2:
-          os << std::get<unsigned long>(value);
+        case 2 :
+          os << "u'" << std::get<unsigned long>(value);
           break;
-        case 3:
-          os << std::get<float>(value);
+        case 3 :
+          os << "f'" << std::get<float>(value);
           break;
-        case 4:
-          os << std::get<double>(value);
+        case 4 :
+          os << "d'" << std::get<double>(value);
           break;
-        default:
-          break;      
+        default :
+          break;
       }
       os << std::endl;
     }

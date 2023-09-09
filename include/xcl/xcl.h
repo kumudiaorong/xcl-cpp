@@ -40,19 +40,20 @@ namespace xcl {
     std::pair<std::reference_wrapper<Section>, bool> try_insert(std::string_view sec);
     auto try_insert(const char *sec) -> decltype(try_insert(std::string_view()));
     template <typename T, typename... Args>
-      requires std::constructible_from<T, Args...> bool
-    try_insert(std::string_view path, Args&&...args) {
+      requires std::constructible_from<T, Args...>
+    std::pair<std::reference_wrapper<Section>, bool> try_insert(std::string_view path, Args&&...args) {
       auto seq = path.rfind('\'');
       if(seq == std::string::npos) {
-        return this->kv.try_emplace(std::string(path), T(std::forward<Args>(args)...)).second;
+        auto [kv, ok] = this->kv.try_emplace(std::string(path), T(std::forward<Args>(args)...));
+        return {std::ref(*this), ok};
       }
       return this->try_insert(path.substr(0, seq))
         .first.get()
         .try_insert<T>(path.substr(seq + 1), std::forward<Args>(args)...);
     }
     template <typename T, typename... Args>
-      requires std::constructible_from<T, Args...> bool
-    try_insert(const char *path, Args&&...args) {
+      requires std::constructible_from<T, Args...>
+    std::pair<std::reference_wrapper<Section>, bool> try_insert(const char *path, Args&&...args) {
       return this->try_insert<T>(std::string_view(path), std::forward<Args>(args)...);
     }
 
