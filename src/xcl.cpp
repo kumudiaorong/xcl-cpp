@@ -1,4 +1,5 @@
 #include <concepts>
+#include <filesystem>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -152,22 +153,31 @@ namespace xcl {
     return this->try_insert(std::string_view(sec));
   }
   std::ostream& operator<<(std::ostream& os, const Section& sec) {
-    if (!sec._name.empty()) {
+    if(!sec._name.empty()) {
       os << "[" << sec.get_full_name() << "]" << std::endl;
     }
     for(auto& [key, value] : sec.kv) {
       os << key << " = ";
-      if(key == "string") {
-        os << "s'" << std::get<std::string>(value) << std::endl;
-      } else if(key == "long") {
-        os << "i'" << std::get<long>(value) << std::endl;
-      } else if(key == "unsigned") {
-        os << "u'" << std::get<unsigned long>(value) << std::endl;
-      } else if(key == "float") {
-        os << "f'" << std::get<float>(value) << std::endl;
-      } else if(key == "double") {
-        os << "d'" << std::get<double>(value) << std::endl;
+      switch (value.index()) {
+        case 0:
+          os << std::get<std::string>(value);
+          break;
+        case 1:
+          os << std::get<long>(value);
+          break;
+        case 2:
+          os << std::get<unsigned long>(value);
+          break;
+        case 3:
+          os << std::get<float>(value);
+          break;
+        case 4:
+          os << std::get<double>(value);
+          break;
+        default:
+          break;      
       }
+      os << std::endl;
     }
     os << std::endl;
     for(auto& [key, value] : sec.sections) {
@@ -175,19 +185,53 @@ namespace xcl {
     }
     return os;
   }
-
+  Section& Section::operator>>(const char *path) {
+    auto p = std::filesystem::path(path);
+    if(!std::filesystem::exists(p)) {
+      recursive_create(p.parent_path());
+    }
+    std::ofstream ofs(path);
+    ofs << *this;
+    return *this;
+  }
+  // Section& Section::operator<<(const char *path) {
+  //   auto p = std::filesystem::path(path);
+  //   if(!std::filesystem::exists(p)) {
+  //     recursive_create(p.parent_path());
+  //   }
+  //   std::ofstream ofs(path);
+  //   ofs << *this;
+  //   return *this;
+  // }
+  void Section::recursive_create(std::filesystem::path abs_path) {
+    if(abs_path.empty()) {
+      return;
+    }
+    if(!std::filesystem::exists(abs_path.parent_path())) {
+      this->recursive_create(abs_path.parent_path());
+    }
+    std::filesystem::create_directory(abs_path);
+  }
   Xcl::Xcl() {
   }
 
   Xcl::Xcl(std::string_view path) {
-    std::ifstream ifs(path.data());
-    std::string next = this->prase_kv(ifs);
-    while(!next.empty()) {
-      this->prase(next, ifs);
+    this->_full_path = std::filesystem::absolute(path);
+    if(std::filesystem::exists(this->_full_path)) {
+      // recursive_create(std::filesystem::path(path).parent_path());
+      std::ifstream ifs(this->_full_path);
+      std::string next = this->prase_kv(ifs);
+      while(!next.empty()) {
+        this->prase(next, ifs);
+      }
+      ifs.close();
     }
-    ifs.close();
   }
-
+  void Xcl::save() {
+    std::ofstream ofs(this->_full_path);
+    ofs << *this;
+    ofs.close();
+  }
   Xcl::~Xcl() {
     std::ofstream ofs(this->_name);
   }

@@ -1,5 +1,6 @@
 #ifndef XSL_XCL_H
 #define XSL_XCL_H
+#include <filesystem>
 #include <fstream>
 #include <initializer_list>
 #include <optional>
@@ -54,12 +55,18 @@ namespace xcl {
     try_insert(const char *path, Args&&...args) {
       return this->try_insert<T>(std::string_view(path), std::forward<Args>(args)...);
     }
+
+    void recursive_create(std::filesystem::path path);
+
     friend std::ostream& operator<<(std::ostream& os, const Section& sec);
+    Section& operator>>(const char path[]);
   };
   class Xcl : public Section {
+    std::string _full_path;
   public:
     Xcl();
     Xcl(std::string_view path);
+    void save();
     ~Xcl();
   };
 }  // namespace xcl

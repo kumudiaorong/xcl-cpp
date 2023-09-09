@@ -1,4 +1,6 @@
+#include <cstdlib>
 #include <iostream>
+#include <string>
 
 #include "xcl/xcl.h"
 void sec_print(xcl::Section& sec, int indent = 0) {
@@ -28,20 +30,25 @@ void sec_print(xcl::Section& sec, int indent = 0) {
   }
 }
 int main() {
-  xcl::Xcl xcl("config.xcl");
-  sec_print(xcl);
-  std::cout << "====================" << std::endl;
-  auto sub = xcl.find("ac'th");
-  if(sub.has_value()) {
-    sec_print(sub.value());
-  }
-  std::cout << "====================" << std::endl;
-  xcl.try_insert("ac'th'new");
-  sec_print(xcl);
-  std::cout << "====================" << std::endl;
-  xcl.try_insert<long>("ac'th'new'long", 1);
-  xcl.try_insert<float>("ac'th'new'float");
-  sec_print(xcl);
-  std::cout << "====================" << std::endl;
-  std::cout << xcl;
+  xcl::Xcl xcl(std::string(std::getenv("HOME")) + "/.config/xcl/config.xcl");
+  xcl.try_insert<long>("ac'th", 1);
+  xcl.try_insert<std::string>("ac'oth", "asdf");
+  xcl.save();
+  // std::cout << xcl;
+  // std::cout << std::string(std::getenv("HOME")) + "/.config/xcl/config.xcl";
+  // sec_print(xcl);
+  // std::cout << "====================" << std::endl;
+  // auto sub = xcl.find("ac'th");
+  // if(sub.has_value()) {
+  //   sec_print(sub.value());
+  // }
+  // std::cout << "====================" << std::endl;
+  // xcl.try_insert("ac'th'new");
+  // sec_print(xcl);
+  // std::cout << "====================" << std::endl;
+  // xcl.try_insert<long>("ac'th'new'long", 1);
+  // xcl.try_insert<float>("ac'th'new'float");
+  // sec_print(xcl);
+  // std::cout << "====================" << std::endl;
+  // std::cout << xcl;
 }
