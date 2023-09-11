@@ -39,7 +39,6 @@ int main() {
   xcl.try_insert<std::string>("oth'asdf", "asdf");
   xcl.try_insert<std::string>("oth'asdf'as", "asdf");
   // std::function<void(long&)> f = [](long& v) { std::cout << v << std::endl; };
-  xcl.find_and<long>("ac'th", [](long& v) { std::cout << v << std::endl; });
   xcl.save();
   // std::cout << xcl;
   // std::cout << std::string(std::getenv("HOME")) + "/.config/xcl/config.xcl";
