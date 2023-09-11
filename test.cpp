@@ -34,6 +34,9 @@ int main() {
   xcl.try_insert<long>("ac'th", 1);
   xcl.try_insert<std::string>("ac'oth", "asdf");
   xcl.try_insert<std::string>("oth", "asdf");
+  xcl.try_insert<std::string>("oth'asd", "asdf");
+  xcl.try_insert<std::string>("oth'asdf", "asdf");
+  xcl.try_insert<std::string>("oth'asdf'as", "asdf");
   xcl.save();
   // std::cout << xcl;
   // std::cout << std::string(std::getenv("HOME")) + "/.config/xcl/config.xcl";

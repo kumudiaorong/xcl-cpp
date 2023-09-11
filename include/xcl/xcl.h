@@ -1,29 +1,37 @@
 #ifndef XSL_XCL_H
 #define XSL_XCL_H
+#include <concepts>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
-#include <concepts>
 #include <variant>
 namespace xcl {
   class Section {
   public:
-  typedef std::variant<std::string, long, unsigned long, float, double> value_type ;
+    using mutex_type = std::shared_mutex;
+    using read_lock = std::shared_lock<mutex_type>;
+    using write_lock = std::unique_lock<mutex_type>;
+
+    typedef std::variant<std::string, long, unsigned long, float, double> value_type;
     std::string _full_path;
     std::string _name;
     std::unordered_map<std::string, value_type> kv;
     std::unordered_map<std::string, Section> sections;
+    mutable mutex_type _m;
   public:
     Section();
-    Section(Section&& other) = default;
+    Section(Section&& other);
     Section(std::string_view full_path, std::string_view name);
     ~Section();
-    Section& operator=(Section&& other) = default;
+    Section& operator=(Section&& other);
     void set_name(std::string_view name);
     std::string_view get_name() const;
   protected:

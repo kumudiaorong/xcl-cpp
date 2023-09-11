@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -9,9 +10,16 @@
 
 #include "xcl/xcl.h"
 namespace xcl {
+
   Section::Section() {
   }
-
+  Section::Section(Section&& other) {
+    read_lock rl(other._m);
+    this->_full_path = std::move(other._full_path);
+    this->_name = std::move(other._name);
+    this->kv = std::move(other.kv);
+    this->sections = std::move(other.sections);
+  }
   Section::Section(std::string_view full_path, std::string& name, std::ifstream& ifs)
     : _full_path(full_path) {
     auto dot = name.find('\'');
@@ -28,6 +36,14 @@ namespace xcl {
   Section::Section(std::string_view full_path, std::string_view name)
     : _full_path(full_path)
     , _name(name) {
+  }
+  Section& Section::operator=(Section&& other) {
+    read_lock rl(other._m);
+    _full_path = std::move(other._full_path);
+    _name = std::move(other._name);
+    kv = std::move(other.kv);
+    sections = std::move(other.sections);
+    return *this;
   }
   std::string Section::prase_kv(std::ifstream& ifs) {
     std::string next;
@@ -72,6 +88,7 @@ namespace xcl {
           default :
             break;
         }
+        write_lock wl(this->_m);
         this->kv.emplace(std::move(key), std::move(value));
       }
       next.clear();
@@ -82,6 +99,7 @@ namespace xcl {
   void Section::prase(std::string& next, std::ifstream& ifs) {
     auto [seq, name, sec] = prase_path(next);
     if(sec == sections.end()) {
+      write_lock wl(this->_m); 
       this->sections.emplace(std::move(name), Section{this->get_full_name(), next, ifs});
     } else {
       if(seq == std::string::npos) {
@@ -98,13 +116,16 @@ namespace xcl {
   Section::prase_path(std::string_view path) {
     auto seq = path.find('\'');
     auto name = std::string(path.substr(0, seq));
+    read_lock rl(this->_m);
     return {seq, name, sections.find(name)};
   }
   void Section::set_name(std::string_view name) {
+    write_lock wl(this->_m);
     this->_name = name;
   }
 
   std::string_view Section::get_name() const {
+    read_lock rl(this->_m);
     return this->_name;
   }
   std::string Section::get_full_name() const {
@@ -126,6 +147,7 @@ namespace xcl {
   }
   template <typename T>
   std::optional<std::reference_wrapper<T>> Section::find(std::string_view name) {
+    read_lock rl(this->_m);
     auto kv = this->kv.find(name.data());
     if(kv == this->kv.end()) {
       return std::nullopt;
@@ -136,7 +158,9 @@ namespace xcl {
   std::pair<std::reference_wrapper<Section>, bool> Section::try_insert(std::string_view path) {
     auto [seq, name, sec] = prase_path(path);  //
     if(sec == this->sections.end()) {
+      write_lock wl(this->_m);
       auto [it, ok] = this->sections.emplace(name, Section{this->get_full_name(), name});
+      wl.release();
       if(seq == std::string::npos) {
         return {it->second, ok};
       } else {
@@ -152,6 +176,7 @@ namespace xcl {
     return this->try_insert(std::string_view(sec));
   }
   std::ostream& operator<<(std::ostream& os, const Section& sec) {
+    Section::read_lock rl(sec._m);
     if(!sec._name.empty()) {
       os << "[" << sec.get_full_name() << "]" << std::endl;
     }
@@ -179,6 +204,7 @@ namespace xcl {
       os << std::endl;
     }
     os << std::endl;
+    rl.release();
     for(auto& [key, value] : sec.sections) {
       os << value;
     }
