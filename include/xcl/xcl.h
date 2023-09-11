@@ -2,19 +2,21 @@
 #define XSL_XCL_H
 #include <filesystem>
 #include <fstream>
-#include <initializer_list>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <unordered_map>
+#include <utility>
+#include <concepts>
 #include <variant>
 namespace xcl {
   class Section {
   public:
+  typedef std::variant<std::string, long, unsigned long, float, double> value_type ;
     std::string _full_path;
     std::string _name;
-    std::unordered_map<std::string, std::variant<std::string, long, unsigned long, float, double>> kv;
+    std::unordered_map<std::string, value_type> kv;
     std::unordered_map<std::string, Section> sections;
   public:
     Section();
@@ -41,11 +43,11 @@ namespace xcl {
     auto try_insert(const char *sec) -> decltype(try_insert(std::string_view()));
     template <typename T, typename... Args>
       requires std::constructible_from<T, Args...>
-    std::pair<std::reference_wrapper<Section>, bool> try_insert(std::string_view path, Args&&...args) {
+    std::pair<std::reference_wrapper<value_type>, bool> try_insert(std::string_view path, Args&&...args) {
       auto seq = path.rfind('\'');
       if(seq == std::string::npos) {
         auto [kv, ok] = this->kv.try_emplace(std::string(path), T(std::forward<Args>(args)...));
-        return {std::ref(*this), ok};
+        return {std::ref(kv->second), ok};
       }
       return this->try_insert(path.substr(0, seq))
         .first.get()
@@ -53,7 +55,8 @@ namespace xcl {
     }
     template <typename T, typename... Args>
       requires std::constructible_from<T, Args...>
-    std::pair<std::reference_wrapper<Section>, bool> try_insert(const char *path, Args&&...args) {
+    auto try_insert(const char *path, Args&&...args)
+      -> decltype(try_insert(std::string_view{}, std::forward<Args>(args)...)) {
       return this->try_insert<T>(std::string_view(path), std::forward<Args>(args)...);
     }
 

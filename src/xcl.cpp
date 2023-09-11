@@ -1,4 +1,3 @@
-#include <concepts>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -52,7 +51,7 @@ namespace xcl {
         if(vtstart == std::string::npos || next.length() - vtstart < 1
            || (next[vtstart + 1] != '"' && next[vtstart + 1] != '\''))  // at least 2 characters, e.g. s"
           continue;
-        std::variant<std::string, long, unsigned long, float, double> value;
+        value_type value;
         auto vtv = std::string_view(next);
         switch(vtv[vtstart]) {
           case 'i' :
