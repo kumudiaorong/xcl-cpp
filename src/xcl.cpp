@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -99,7 +100,7 @@ namespace xcl {
   void Section::prase(std::string& next, std::ifstream& ifs) {
     auto [seq, name, sec] = prase_path(next);
     if(sec == sections.end()) {
-      write_lock wl(this->_m); 
+      write_lock wl(this->_m);
       this->sections.emplace(std::move(name), Section{this->get_full_name(), next, ifs});
     } else {
       if(seq == std::string::npos) {
@@ -132,7 +133,7 @@ namespace xcl {
     return this->_full_path.empty() ? this->_name : this->_full_path + '\'' + this->_name;
   }
 
-  auto Section::find(const char *name) -> decltype(find(std::string_view())) {
+  auto Section::find(const char name[]) -> decltype(find(std::string_view())) {
     return this->find(std::string_view(name));
   }
   std::optional<std::reference_wrapper<Section>> Section::find(std::string_view path) {
@@ -145,8 +146,9 @@ namespace xcl {
       return sec->second.find(path.substr(seq + 1));
     }
   }
+
   template <typename T>
-  std::optional<std::reference_wrapper<T>> Section::find(std::string_view name) {
+  std::optional<T> Section::find(std::string_view name) const {
     read_lock rl(this->_m);
     auto kv = this->kv.find(name.data());
     if(kv == this->kv.end()) {
@@ -155,6 +157,11 @@ namespace xcl {
       return std::get<T>(kv->second);
     }
   }
+  template <typename T>
+  decltype(auto) Section::find(const char name[]) const {
+    return this->find<T>(std::string_view(name));
+  }
+
   std::pair<std::reference_wrapper<Section>, bool> Section::try_insert(std::string_view path) {
     auto [seq, name, sec] = prase_path(path);  //
     if(sec == this->sections.end()) {
@@ -169,12 +176,12 @@ namespace xcl {
     } else if(seq == std::string::npos) {
       return {sec->second, false};
     }
-
     return sec->second.try_insert(path.substr(seq + 1));
   }
   auto Section::try_insert(const char *sec) -> decltype(try_insert(std::string_view())) {
     return this->try_insert(std::string_view(sec));
   }
+
   std::ostream& operator<<(std::ostream& os, const Section& sec) {
     Section::read_lock rl(sec._m);
     if(!sec._name.empty()) {
@@ -252,12 +259,12 @@ namespace xcl {
       ifs.close();
     }
   }
+  Xcl::~Xcl() {
+    // std::ofstream ofs(this->get_name());
+  }
   void Xcl::save() {
     std::ofstream ofs(this->_full_path);
     ofs << *this;
     ofs.close();
-  }
-  Xcl::~Xcl() {
-    std::ofstream ofs(this->_name);
   }
 }  // namespace xcl
