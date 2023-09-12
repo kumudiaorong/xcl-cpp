@@ -271,8 +271,12 @@ namespace xcl {
   }
   void Xcl::save(bool force) {
     if(force || this->need_update()) {
+      if(auto p = this->_full_path.parent_path(); !std::filesystem::exists(p)) {
+        this->recursive_create(p);
+      }
       if(auto status = std::filesystem::status(this->_full_path);
-         status.type() == std::filesystem::file_type::regular || status.type() == std::filesystem::file_type::symlink) {
+         status.type() == std::filesystem::file_type::regular || status.type() == std::filesystem::file_type::symlink
+         || status.type() == std::filesystem::file_type::not_found) {
         std::ofstream ofs(this->_full_path);
         ofs << *this;
         ofs.close();

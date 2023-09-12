@@ -96,7 +96,7 @@ namespace xcl {
     Section& operator>>(const char path[]);
   };
   class Xcl : public Section {
-    std::string _full_path;
+    std::filesystem::path _full_path;
     std::filesystem::file_time_type _last_write_time;
   public:
     Xcl();
