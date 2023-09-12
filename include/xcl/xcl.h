@@ -1,5 +1,6 @@
 #ifndef XSL_XCL_H
 #define XSL_XCL_H
+#include <chrono>
 #include <concepts>
 #include <cstdint>
 #include <filesystem>
@@ -21,12 +22,13 @@ namespace xcl {
     std::string _name;
     std::unordered_map<std::string, value_type> kv;
     std::unordered_map<std::string, Section> sections;
+    mutable bool _update_flag;
   public:
     Section();
-    Section(Section&& other)=default;
+    Section(Section&& other) = default;
     Section(std::string_view full_path, std::string_view name);
     ~Section();
-    Section& operator=(Section&& other)=default;
+    Section& operator=(Section&& other) = default;
     void set_name(std::string_view name);
     std::string_view get_name() const;
   protected:
@@ -35,6 +37,8 @@ namespace xcl {
     std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::iterator> prase_path(
       std::string_view name);
     void prase(std::string& next, std::ifstream& ifs);
+
+    bool need_update()const;
   public:
     std::string get_full_name() const;
     std::optional<std::reference_wrapper<Section>> find(std::string_view name);
@@ -65,7 +69,7 @@ namespace xcl {
     try_insert(const char *path, Args&&...args) {
       return this->try_insert<T>(std::string_view(path), std::forward<Args>(args)...);
     }
-
+    void clear();
     void recursive_create(std::filesystem::path path);
 
     friend std::ostream& operator<<(std::ostream& os, const Section& sec);
@@ -73,11 +77,15 @@ namespace xcl {
   };
   class Xcl : public Section {
     std::string _full_path;
+    std::filesystem::file_time_type _last_write_time;
   public:
     Xcl();
     Xcl(std::string_view path);
     void save();
+    void reload();
     ~Xcl();
+  private:
+    bool prase_file();
   };
 }  // namespace xcl
 #endif

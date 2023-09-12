@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -10,10 +11,19 @@
 #include "xcl/xcl.h"
 namespace xcl {
 
-  Section::Section() {
+  Section::Section()
+    : _full_path()
+    , _name()
+    , kv()
+    , sections()
+    , _update_flag() {
   }
   Section::Section(std::string_view full_path, std::string& name, std::ifstream& ifs)
-    : _full_path(full_path) {
+    : _full_path(full_path)
+    , _name()
+    , kv()
+    , sections()
+    , _update_flag() {
     auto dot = name.find('\'');
     if(dot != std::string::npos) {
       this->set_name(name.substr(0, dot));
@@ -27,7 +37,10 @@ namespace xcl {
   }
   Section::Section(std::string_view full_path, std::string_view name)
     : _full_path(full_path)
-    , _name(name) {
+    , _name(name)
+    , kv()
+    , sections()
+    , _update_flag() {
   }
   std::string Section::prase_kv(std::ifstream& ifs) {
     std::string next;
@@ -73,6 +86,7 @@ namespace xcl {
             break;
         }
         this->kv.emplace(std::move(key), std::move(value));
+        this->_update_flag = false;
       }
       next.clear();
     }
@@ -83,6 +97,7 @@ namespace xcl {
     auto [seq, name, sec] = prase_path(next);
     if(sec == sections.end()) {
       this->sections.emplace(std::move(name), Section{this->get_full_name(), next, ifs});
+      this->_update_flag = false;
     } else {
       if(seq == std::string::npos) {
         next = sec->second.prase_kv(ifs);
@@ -92,6 +107,13 @@ namespace xcl {
       }
     }
   }
+
+  bool Section::need_update() const {
+    return !this->_update_flag || std::any_of(this->sections.begin(), this->sections.end(), [](const auto& sec) {
+      return sec.second.need_update();
+    });
+  }
+
   Section::~Section() {
   }
   std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::iterator>
@@ -102,6 +124,7 @@ namespace xcl {
   }
   void Section::set_name(std::string_view name) {
     this->_name = name;
+    this->_update_flag = false;
   }
 
   std::string_view Section::get_name() const {
@@ -143,6 +166,7 @@ namespace xcl {
     auto [seq, name, sec] = prase_path(path);  //
     if(sec == this->sections.end()) {
       auto [it, ok] = this->sections.emplace(name, Section{this->get_full_name(), name});
+      this->_update_flag = false;
       if(seq == std::string::npos) {
         return {it->second, ok};
       } else {
@@ -157,6 +181,11 @@ namespace xcl {
     return this->try_insert(std::string_view(sec));
   }
 
+  void Section::clear() {
+    this->kv.clear();
+    this->sections.clear();
+    this->_update_flag = false;
+  }
   std::ostream& operator<<(std::ostream& os, const Section& sec) {
     if(!sec._name.empty()) {
       os << "[" << sec.get_full_name() << "]" << std::endl;
@@ -188,6 +217,7 @@ namespace xcl {
     for(auto& [key, value] : sec.sections) {
       os << value;
     }
+    sec._update_flag = true;
     return os;
   }
   Section& Section::operator>>(const char *path) {
@@ -220,24 +250,54 @@ namespace xcl {
   Xcl::Xcl() {
   }
 
-  Xcl::Xcl(std::string_view path) {
-    this->_full_path = std::filesystem::absolute(path);
-    if(std::filesystem::exists(this->_full_path)) {
+  Xcl::Xcl(std::string_view path)
+    : Section()
+    , _full_path()
+    , _last_write_time() {
+    try {
+      this->_full_path = std::filesystem::absolute(path);
+    } catch(...) {
+      return;
+    }
+    auto status = std::filesystem::status(this->_full_path);
+    if(status.type() == std::filesystem::file_type::regular || status.type() == std::filesystem::file_type::symlink) {
       // recursive_create(std::filesystem::path(path).parent_path());
-      std::ifstream ifs(this->_full_path);
-      std::string next = this->prase_kv(ifs);
-      while(!next.empty()) {
-        this->prase(next, ifs);
-      }
-      ifs.close();
+      this->_last_write_time = std::filesystem::last_write_time(this->_full_path);
+      this->prase_file();
     }
   }
   Xcl::~Xcl() {
     // std::ofstream ofs(this->get_name());
   }
   void Xcl::save() {
-    std::ofstream ofs(this->_full_path);
-    ofs << *this;
-    ofs.close();
+    if(this->need_update()) {
+      std::ofstream ofs(this->_full_path);
+      ofs << *this;
+      ofs.close();
+    }
+  }
+  void Xcl::reload() {
+    auto status = std::filesystem::status(this->_full_path);
+    if(status.type() == std::filesystem::file_type::regular || status.type() == std::filesystem::file_type::symlink) {
+      auto last_write_time = std::filesystem::last_write_time(this->_full_path);
+      if(last_write_time != this->_last_write_time) {
+        this->_last_write_time = last_write_time;
+        this->clear();
+        this->prase_file();
+      }
+    }
+  }
+
+  bool Xcl::prase_file() {
+    std::ifstream ifs(this->_full_path);
+    if(!ifs.is_open()) {
+      return false;
+    }
+    std::string next = this->prase_kv(ifs);
+    while(!next.empty()) {
+      this->prase(next, ifs);
+    }
+    ifs.close();
+    return true;
   }
 }  // namespace xcl
