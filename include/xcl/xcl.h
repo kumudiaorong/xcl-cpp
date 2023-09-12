@@ -46,12 +46,21 @@ namespace xcl {
     auto find(const char name[]) -> decltype(find(std::string_view()));
 
     template <typename T>
-    std::optional<T> find(std::string_view name) const;
+    std::optional<T> find(std::string_view name) const {
+      auto kv = this->_kvs.find(name.data());
+      if(kv == this->_kvs.end()) {
+        return std::nullopt;
+      } else {
+        return std::get<T>(kv->second);
+      }
+    }
     template <typename T>
-    decltype(auto) find(const char name[]) const;
+    std::optional<T> find(const char name[]) const {
+      return this->find<T>(std::string_view(name));
+    }
 
     std::pair<std::reference_wrapper<Section>, bool> try_insert(std::string_view sec);
-    auto try_insert(const char *sec) -> decltype(try_insert(std::string_view()));
+    decltype(auto) try_insert(const char *sec);
 
     template <typename T, typename... Args>
       requires std::constructible_from<T, Args...>

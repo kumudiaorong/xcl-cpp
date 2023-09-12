@@ -38,6 +38,7 @@ int main() {
   xcl.try_insert<std::string>("oth'asd", "asdf");
   xcl.try_insert<std::string>("oth'asdf", "asdf");
   xcl.try_insert<std::string>("oth'asdf'as", "asdf");
+  xcl.find<long>("ac'th");
   // std::function<void(long&)> f = [](long& v) { std::cout << v << std::endl; };
   xcl.save();
   // std::cout << xcl;

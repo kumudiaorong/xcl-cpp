@@ -148,19 +148,7 @@ namespace xcl {
     }
   }
 
-  template <typename T>
-  std::optional<T> Section::find(std::string_view name) const {
-    auto kv = this->_kvs.find(name.data());
-    if(kv == this->_kvs.end()) {
-      return std::nullopt;
-    } else {
-      return std::get<T>(kv->second);
-    }
-  }
-  template <typename T>
-  decltype(auto) Section::find(const char name[]) const {
-    return this->find<T>(std::string_view(name));
-  }
+
 
   std::pair<std::reference_wrapper<Section>, bool> Section::try_insert(std::string_view path) {
     auto [seq, name, sec] = prase_path(path);  //
@@ -177,7 +165,7 @@ namespace xcl {
     }
     return sec->second.try_insert(path.substr(seq + 1));
   }
-  auto Section::try_insert(const char *sec) -> decltype(try_insert(std::string_view())) {
+  decltype(auto) Section::try_insert(const char *sec) {
     return this->try_insert(std::string_view(sec));
   }
 
