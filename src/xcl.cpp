@@ -150,24 +150,7 @@ namespace xcl {
 
 
 
-  std::pair<std::reference_wrapper<Section>, bool> Section::try_insert(std::string_view path) {
-    auto [seq, name, sec] = prase_path(path);  //
-    if(sec == this->sections.end()) {
-      auto [it, ok] = this->sections.emplace(name, Section{this->get_full_name(), name});
-      this->_update_flag = false;
-      if(seq == std::string::npos) {
-        return {it->second, ok};
-      } else {
-        sec = it;
-      }
-    } else if(seq == std::string::npos) {
-      return {sec->second, false};
-    }
-    return sec->second.try_insert(path.substr(seq + 1));
-  }
-  decltype(auto) Section::try_insert(const char *sec) {
-    return this->try_insert(std::string_view(sec));
-  }
+
 
   void Section::clear() {
     this->_kvs.clear();
