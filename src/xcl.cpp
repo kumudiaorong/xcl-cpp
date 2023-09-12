@@ -51,16 +51,16 @@ namespace xcl {
         next = next.substr(1, next.size() - 2);
         break;
       } else {
-        auto eseq = next.find('=');
-        if(eseq == std::string::npos)
+        auto kstart = next.find_first_not_of(' ');
+        if(kstart == std::string::npos)
           continue;
-        std::string key;
-        if(auto tmp = next.find(' '); tmp < eseq) {
-          key = next.substr(0, tmp);
-        } else {
-          key = next.substr(0, eseq);
-        }
-        auto vtstart = next.find_first_not_of(' ', eseq + 1);
+        auto eq = next.find('=', kstart);
+        if(eq == std::string::npos)
+          continue;
+        auto kend = next.find_last_not_of(" ", kstart + 1, eq - kstart - 1);
+        if(kend == std::string::npos)
+          continue;
+        auto vtstart = next.find_first_not_of(' ', eq + 1);
         if(vtstart == std::string::npos || next.length() - vtstart < 1
            || (next[vtstart + 1] != '"' && next[vtstart + 1] != '\''))  // at least 2 characters, e.g. s"
           continue;
@@ -85,7 +85,7 @@ namespace xcl {
           default :
             break;
         }
-        this->_kvs.emplace(std::move(key), std::move(value));
+        this->_kvs.emplace(next.substr(kstart, kend + 1 - kstart), std::move(value));
         this->_update_flag = false;
       }
       next.clear();
