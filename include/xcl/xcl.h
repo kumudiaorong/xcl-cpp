@@ -14,13 +14,14 @@
 #include <utility>
 #include <variant>
 namespace xcl {
+  const char value_prefix[] = "slufd";
   class Section {
   public:
     typedef std::variant<std::string, long, unsigned long, float, double> value_type;
   private:
     std::string _full_path;
     std::string _name;
-    std::unordered_map<std::string, value_type> kv;
+    std::unordered_map<std::string, value_type> _kvs;
     std::unordered_map<std::string, Section> sections;
     mutable bool _update_flag;
   public:
@@ -38,14 +39,14 @@ namespace xcl {
       std::string_view name);
     void prase(std::string& next, std::ifstream& ifs);
 
-    bool need_update()const;
+    bool need_update() const;
   public:
     std::string get_full_name() const;
     std::optional<std::reference_wrapper<Section>> find(std::string_view name);
     auto find(const char name[]) -> decltype(find(std::string_view()));
 
     template <typename T>
-    std::optional<std::reference_wrapper<T>> find(std::string_view name) const;
+    std::optional<T> find(std::string_view name) const;
     template <typename T>
     decltype(auto) find(const char name[]) const;
 
@@ -54,11 +55,11 @@ namespace xcl {
 
     template <typename T, typename... Args>
       requires std::constructible_from<T, Args...>
-    std::pair<std::reference_wrapper<T>, bool> try_insert(std::string_view path, Args&&...args) {
+    std::pair<T, bool> try_insert(std::string_view path, Args&&...args) {
       auto seq = path.rfind('\'');
       if(seq == std::string::npos) {
-        auto [kv, ok] = this->kv.try_emplace(std::string(path), T(std::forward<Args>(args)...));
-        return {std::ref(std::get<T>(kv->second)), ok};
+        auto [kv, ok] = this->_kvs.try_emplace(std::string(path), T(std::forward<Args>(args)...));
+        return {std::get<T>(kv->second), ok};
       }
       return this->try_insert(path.substr(0, seq))
         .first.get()
@@ -69,6 +70,25 @@ namespace xcl {
     try_insert(const char *path, Args&&...args) {
       return this->try_insert<T>(std::string_view(path), std::forward<Args>(args)...);
     }
+
+    template <typename T, typename... Args>
+      requires std::constructible_from<T, Args...>
+    void insert_or_assign(std::string_view path, Args&&...args) {
+      auto seq = path.rfind('\'');
+      if(seq == std::string::npos) {
+        this->_kvs.insert_or_assign(std::string(path), T(std::forward<Args>(args)...));
+      } else {
+        this->try_insert(path.substr(0, seq))
+          .first.get()
+          .insert_or_assign<T>(path.substr(seq + 1), std::forward<Args>(args)...);
+      }
+    }
+    template <typename T, typename... Args>
+      requires std::constructible_from<T, Args...> decltype(auto)
+    insert_or_assign(const char *path, Args&&...args) {
+      return this->insert_or_assign<T>(std::string_view(path), std::forward<Args>(args)...);
+    }
+
     void clear();
     void recursive_create(std::filesystem::path path);
 
@@ -81,8 +101,8 @@ namespace xcl {
   public:
     Xcl();
     Xcl(std::string_view path);
-    void save();
-    void reload();
+    void save(bool force = false);
+    void reload(bool force = false);
     ~Xcl();
   private:
     bool prase_file();
