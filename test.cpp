@@ -32,14 +32,13 @@
 // }
 int main() {
   xcl::Xcl xcl(std::string(std::getenv("HOME")) + "/.config/xcl/config.xcl");
-  xcl.try_insert("ac'th");
-  xcl.try_insert<long>("ac'th", 1);
-  xcl.try_insert<std::string>("ac'oth", "asdf");
-  xcl.try_insert<std::string>("oth", "asdf");
-  xcl.try_insert<std::string>("oth'asd", "asdf");
-  xcl.try_insert<std::string>("oth'asdf", "asdf");
-  xcl.try_insert<std::string>("oth'asdf'as", "asdf");
-  xcl.find<long>("ac'th");
+  xcl.try_insert("sec0");
+  xcl.try_insert("sec0'sec0");
+  xcl.try_insert<long>("key", 1);
+  xcl.try_insert<std::string>("sec1'key", "asdf");
+  xcl.try_insert<std::string>("sec1", "asdf");
+  xcl.try_insert<std::string>("sec1'key 1", "asdf");
+  xcl.try_insert<std::string>("sec1'sec 0'key1", "asdf");
   // std::function<void(long&)> f = [](long& v) { std::cout << v << std::endl; };
   xcl.save();
   // std::cout << xcl;

@@ -54,10 +54,10 @@ namespace xcl {
         auto kstart = next.find_first_not_of(' ');
         if(kstart == std::string::npos)
           continue;
-        auto eq = next.find('=', kstart);
+        auto eq = next.find('=', kstart + 1);
         if(eq == std::string::npos)
           continue;
-        auto kend = next.find_last_not_of(" ", kstart + 1, eq - kstart - 1);
+        auto kend = next.find_last_not_of(' ', eq - 1);
         if(kend == std::string::npos)
           continue;
         auto vtstart = next.find_first_not_of(' ', eq + 1);
@@ -147,10 +147,6 @@ namespace xcl {
       return sec->second.find(path.substr(seq + 1));
     }
   }
-
-
-
-
 
   void Section::clear() {
     this->_kvs.clear();
