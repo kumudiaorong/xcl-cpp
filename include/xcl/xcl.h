@@ -35,24 +35,37 @@ namespace xcl {
   protected:
     Section(std::string_view full_path, std::string& name, std::ifstream& ifs);
     std::string prase_kv(std::ifstream& ifs);
-    std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::iterator> prase_path(
-      std::string_view name);
+    std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::iterator>
+    prase_path(std::string_view name);
+    std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::const_iterator>
+    prase_path(std::string_view name) const;
     void prase(std::string& next, std::ifstream& ifs);
 
     bool need_update() const;
   public:
     std::string get_full_name() const;
-    std::optional<std::reference_wrapper<Section>> find(std::string_view name);
-    auto find(const char name[]) -> decltype(find(std::string_view()));
+    std::optional<std::reference_wrapper<Section>> find(std::string_view name) ;
+    auto find(const char name[]) -> decltype(find(std::string_view())) ;
+
+    std::optional<std::reference_wrapper<const Section>> find(std::string_view name) const;
+    auto find(const char name[])const -> decltype(find(std::string_view())) ;
 
     template <typename T>
-    std::optional<T> find(std::string_view name) const {
-      auto kv = this->_kvs.find(name.data());
-      if(kv == this->_kvs.end()) {
-        return std::nullopt;
-      } else {
-        return std::get<T>(kv->second);
+    std::optional<std::reference_wrapper<const T>> find(std::string_view path) const {
+      auto seq = path.rfind('\'');
+      if(seq == std::string::npos) {
+        auto kv = this->_kvs.find(path.data());
+        if(kv == this->_kvs.end()) {
+          return std::nullopt;
+        } else {
+          return std::get<T>(kv->second);
+        }
       }
+      auto sec = this->find(path.substr(0, seq));
+      if(sec == std::nullopt) {
+        return std::nullopt;
+      }
+      return sec->get().find<T>(path.substr(seq + 1));
     }
     template <typename T>
     decltype(auto) find(const char name[]) const {
@@ -80,7 +93,7 @@ namespace xcl {
 
     template <typename T, typename... Args>
       requires std::constructible_from<T, Args...>
-    std::pair<T, bool> try_insert(std::string_view path, Args&&...args) {
+    std::pair<std::reference_wrapper<T>, bool> try_insert(std::string_view path, Args&&...args) {
       auto seq = path.rfind('\'');
       if(seq == std::string::npos) {
         auto [kv, ok] = this->_kvs.try_emplace(std::string(path), T(std::forward<Args>(args)...));

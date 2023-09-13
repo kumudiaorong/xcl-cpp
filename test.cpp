@@ -39,6 +39,7 @@ int main() {
   xcl.try_insert<std::string>("sec1", "asdf");
   xcl.try_insert<std::string>("sec1'key 1", "asdf");
   xcl.try_insert<std::string>("sec1'sec 0'key1", "asdf");
+  xcl.find<long>("key");
   // std::function<void(long&)> f = [](long& v) { std::cout << v << std::endl; };
   xcl.save();
   // std::cout << xcl;

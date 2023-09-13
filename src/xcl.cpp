@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -122,6 +123,12 @@ namespace xcl {
     auto name = std::string(path.substr(0, seq));
     return {seq, name, sections.find(name)};
   }
+  std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::const_iterator>
+  Section::prase_path(std::string_view path) const {
+    auto seq = path.find('\'');
+    auto name = std::string(path.substr(0, seq));
+    return {seq, name, sections.find(name)};
+  }
   void Section::set_name(std::string_view name) {
     this->_name = name;
     this->_update_flag = false;
@@ -147,7 +154,19 @@ namespace xcl {
       return sec->second.find(path.substr(seq + 1));
     }
   }
-
+  auto Section::find(const char name[]) const-> decltype(find(std::string_view()))  {
+    return this->find(std::string_view(name));
+  }
+  std::optional<std::reference_wrapper<const Section>> Section::find(std::string_view path) const {
+    auto [seq, _, sec] = prase_path(path);
+    if(sec == this->sections.end()) {
+      return std::nullopt;
+    } else if(seq == std::string::npos) {
+      return sec->second;
+    } else {
+      return sec->second.find(path.substr(seq + 1));
+    }
+  }
   void Section::clear() {
     this->_kvs.clear();
     this->sections.clear();
