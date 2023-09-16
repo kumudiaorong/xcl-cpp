@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -10,6 +11,7 @@
 #include <variant>
 
 #include "xcl/xcl.h"
+
 namespace xcl {
 
   Section::Section()
@@ -154,7 +156,7 @@ namespace xcl {
       return sec->second.find(path.substr(seq + 1));
     }
   }
-  auto Section::find(const char name[]) const-> decltype(find(std::string_view()))  {
+  auto Section::find(const char name[]) const -> decltype(find(std::string_view())) {
     return this->find(std::string_view(name));
   }
   std::optional<std::reference_wrapper<const Section>> Section::find(std::string_view path) const {
@@ -280,7 +282,14 @@ namespace xcl {
       }
     }
   }
-
+  void Xcl::load(std::string_view path) {
+    try {
+      this->_full_path = std::filesystem::absolute(path);
+    } catch(...) {
+      return;
+    }
+    this->reload(true);
+  }
   bool Xcl::prase_file() {
     std::ifstream ifs(this->_full_path);
     if(!ifs.is_open()) {
