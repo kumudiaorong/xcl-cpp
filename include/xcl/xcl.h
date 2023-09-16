@@ -35,8 +35,8 @@ namespace xcl {
   protected:
     Section(std::string_view full_path, std::string& name, std::ifstream& ifs);
     std::string prase_kv(std::ifstream& ifs);
-    std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::iterator>
-    prase_path(std::string_view name);
+    std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::iterator> prase_path(
+      std::string_view name);
     std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::const_iterator>
     prase_path(std::string_view name) const;
     void prase(std::string& next, std::ifstream& ifs);
@@ -44,11 +44,11 @@ namespace xcl {
     bool need_update() const;
   public:
     std::string get_full_name() const;
-    std::optional<std::reference_wrapper<Section>> find(std::string_view name) ;
-    auto find(const char name[]) -> decltype(find(std::string_view())) ;
+    std::optional<std::reference_wrapper<Section>> find(std::string_view name);
+    auto find(const char name[]) -> decltype(find(std::string_view()));
 
     std::optional<std::reference_wrapper<const Section>> find(std::string_view name) const;
-    auto find(const char name[])const -> decltype(find(std::string_view())) ;
+    auto find(const char name[]) const -> decltype(find(std::string_view()));
 
     template <typename T>
     std::optional<std::reference_wrapper<const T>> find(std::string_view path) const {
@@ -104,8 +104,8 @@ namespace xcl {
         .try_insert<T>(path.substr(seq + 1), std::forward<Args>(args)...);
     }
     template <typename T, typename... Args>
-      requires std::constructible_from<T, Args...> decltype(auto)
-    try_insert(const char *path, Args&&...args) {
+      requires std::constructible_from<T, Args...>
+    decltype(auto) try_insert(const char *path, Args&&...args) {
       return this->try_insert<T>(std::string_view(path), std::forward<Args>(args)...);
     }
 
@@ -122,8 +122,8 @@ namespace xcl {
       }
     }
     template <typename T, typename... Args>
-      requires std::constructible_from<T, Args...> decltype(auto)
-    insert_or_assign(const char *path, Args&&...args) {
+      requires std::constructible_from<T, Args...>
+    decltype(auto) insert_or_assign(const char *path, Args&&...args) {
       return this->insert_or_assign<T>(std::string_view(path), std::forward<Args>(args)...);
     }
 
@@ -142,6 +142,7 @@ namespace xcl {
     void save(bool force = false);
     void reload(bool force = false);
     void load(std::string_view path);
+    void load(std::filesystem::path path);
     ~Xcl();
   private:
     bool prase_file();

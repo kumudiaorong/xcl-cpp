@@ -290,6 +290,14 @@ namespace xcl {
     }
     this->reload(true);
   }
+  void Xcl::load(std::filesystem::path path) {
+    try {
+      this->_full_path = std::filesystem::absolute(path);
+    } catch(...) {
+      return;
+    }
+    this->reload(true);
+  }
   bool Xcl::prase_file() {
     std::ifstream ifs(this->_full_path);
     if(!ifs.is_open()) {
