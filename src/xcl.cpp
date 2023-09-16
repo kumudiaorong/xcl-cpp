@@ -282,14 +282,6 @@ namespace xcl {
       }
     }
   }
-  void Xcl::load(std::string_view path) {
-    try {
-      this->_full_path = std::filesystem::absolute(path);
-    } catch(...) {
-      return;
-    }
-    this->reload(true);
-  }
   void Xcl::load(std::filesystem::path path) {
     try {
       this->_full_path = std::filesystem::absolute(path);

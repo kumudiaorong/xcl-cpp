@@ -141,7 +141,6 @@ namespace xcl {
     Xcl(std::string_view path);
     void save(bool force = false);
     void reload(bool force = false);
-    void load(std::string_view path);
     void load(std::filesystem::path path);
     ~Xcl();
   private:
