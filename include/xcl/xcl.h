@@ -1,8 +1,6 @@
 #ifndef XSL_XCL_H
 #define XSL_XCL_H
-#include <chrono>
 #include <concepts>
-#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -17,13 +15,12 @@ namespace xcl {
   const char value_prefix[] = "slufd";
   class Section {
   public:
-    typedef std::variant<std::string, long, unsigned long, float, double> value_type;
+    typedef std::variant<std::string, long, unsigned long, float, double> sym_type;
   private:
-    std::string _full_path;
-    std::string _name;
-    std::unordered_map<std::string, value_type> _kvs;
-    std::unordered_map<std::string, Section> sections;
-    mutable bool _update_flag;
+    std::string _full_path{};
+    std::string _name{};
+    std::unordered_map<std::string, sym_type> _kvs{};
+    std::unordered_map<std::string, Section> _sections{};
   public:
     Section();
     Section(Section&& other) = default;
@@ -33,8 +30,10 @@ namespace xcl {
     void set_name(std::string_view name);
     std::string_view get_name() const;
   protected:
+    mutable bool _update_flag{true};
     Section(std::string_view full_path, std::string& name, std::ifstream& ifs);
     std::string prase_kv(std::ifstream& ifs);
+    std::optional<sym_type> prase_sym(std::string str);
     std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::iterator> prase_path(
       std::string_view name);
     std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::const_iterator>
@@ -74,8 +73,8 @@ namespace xcl {
 
     std::pair<std::reference_wrapper<Section>, bool> try_insert(std::string_view path) {
       auto [seq, name, sec] = prase_path(path);  //
-      if(sec == this->sections.end()) {
-        auto [it, ok] = this->sections.emplace(name, Section{this->get_full_name(), name});
+      if(sec == this->_sections.end()) {
+        auto [it, ok] = this->_sections.emplace(name, Section{this->get_full_name(), name});
         this->_update_flag = false;
         if(seq == std::string::npos) {
           return {it->second, ok};
@@ -104,8 +103,8 @@ namespace xcl {
         .try_insert<T>(path.substr(seq + 1), std::forward<Args>(args)...);
     }
     template <typename T, typename... Args>
-      requires std::constructible_from<T, Args...>
-    decltype(auto) try_insert(const char *path, Args&&...args) {
+      requires std::constructible_from<T, Args...> decltype(auto)
+    try_insert(const char *path, Args&&...args) {
       return this->try_insert<T>(std::string_view(path), std::forward<Args>(args)...);
     }
 
@@ -122,8 +121,8 @@ namespace xcl {
       }
     }
     template <typename T, typename... Args>
-      requires std::constructible_from<T, Args...>
-    decltype(auto) insert_or_assign(const char *path, Args&&...args) {
+      requires std::constructible_from<T, Args...> decltype(auto)
+    insert_or_assign(const char *path, Args&&...args) {
       return this->insert_or_assign<T>(std::string_view(path), std::forward<Args>(args)...);
     }
 
@@ -134,8 +133,8 @@ namespace xcl {
     Section& operator>>(const char path[]);
   };
   class Xcl : public Section {
-    std::filesystem::path _full_path;
-    std::filesystem::file_time_type _last_write_time;
+    std::filesystem::path _full_path{};
+    std::filesystem::file_time_type _last_write_time{};
   public:
     Xcl();
     Xcl(std::string_view path);

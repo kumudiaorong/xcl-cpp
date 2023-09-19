@@ -14,25 +14,16 @@
 
 namespace xcl {
 
-  Section::Section()
-    : _full_path()
-    , _name()
-    , _kvs()
-    , sections()
-    , _update_flag() {
+  Section::Section() {
   }
   Section::Section(std::string_view full_path, std::string& name, std::ifstream& ifs)
-    : _full_path(full_path)
-    , _name()
-    , _kvs()
-    , sections()
-    , _update_flag() {
+    : _full_path(full_path) {
     auto dot = name.find('\'');
     if(dot != std::string::npos) {
       this->set_name(name.substr(0, dot));
       name = name.substr(dot + 1);
       auto sub = Section{this->get_full_name(), name, ifs};
-      this->sections.emplace(sub.get_name(), std::move(sub));
+      this->_sections.emplace(sub.get_name(), std::move(sub));
       return;
     }
     this->set_name(name);
@@ -40,10 +31,7 @@ namespace xcl {
   }
   Section::Section(std::string_view full_path, std::string_view name)
     : _full_path(full_path)
-    , _name(name)
-    , _kvs()
-    , sections()
-    , _update_flag() {
+    , _name(name) {
   }
   std::string Section::prase_kv(std::ifstream& ifs) {
     std::string next;
@@ -54,52 +42,59 @@ namespace xcl {
         next = next.substr(1, next.size() - 2);
         break;
       } else {
-        auto kstart = next.find_first_not_of(' ');
-        if(kstart == std::string::npos)
-          continue;
-        auto eq = next.find('=', kstart + 1);
+        auto eq = next.find('=');
         if(eq == std::string::npos)
           continue;
-        auto kend = next.find_last_not_of(' ', eq - 1);
-        if(kend == std::string::npos)
+        auto key = this->prase_sym(next.substr(0, eq));
+        if(!key.has_value() || !std::holds_alternative<std::string>(*key))
           continue;
-        auto vtstart = next.find_first_not_of(' ', eq + 1);
-        if(vtstart == std::string::npos || next.length() - vtstart < 1
-           || (next[vtstart + 1] != '"' && next[vtstart + 1] != '\''))  // at least 2 characters, e.g. s"
+        auto value = this->prase_sym(next.substr(eq + 1));
+        if(!value.has_value())
           continue;
-        value_type value;
-        auto vtv = std::string_view(next);
-        switch(vtv[vtstart]) {
-          case 'i' :
-            value = std::stol(next.substr(vtstart + 2));
-            break;
-          case 'u' :
-            value = std::stoul(next.substr(vtstart + 2));
-            break;
-          case 'f' :
-            value = std::stof(next.substr(vtstart + 2));
-            break;
-          case 'd' :
-            value = std::stod(next.substr(vtstart + 2));
-            break;
-          case 's' :
-            value = next.substr(vtstart + 2);
-            break;
-          default :
-            break;
-        }
-        this->_kvs.emplace(next.substr(kstart, kend + 1 - kstart), std::move(value));
+        this->_kvs.emplace(std::get<std::string>(*key), *value);
         this->_update_flag = false;
       }
       next.clear();
     }
     return next;
   }
+  std::optional<Section::sym_type> Section::prase_sym(std::string str) {
+    if(str.empty()) {
+      return std::nullopt;
+    }
+    auto ss = str.find_first_not_of(' ');
+    if(ss == std::string::npos || ss == str.size() - 1 || str[ss] == '\'') {
+      return std::nullopt;
+    }
+    auto se = str.find_last_not_of(' ', str.size() - 1);
+    auto seq = str.find('\'', ss + 1);
+    if(seq == std::string::npos) {
+      return std::string(str.substr(ss, se + 1 - ss));
+    }
+    if(seq != ss + 1) {
+      return std::nullopt;
+    }
+    auto sym = std::string(str.substr(seq + 1, se - seq));
+    switch(str[ss]) {
+      case 'i' :
+        return std::stol(sym);
+      case 'u' :
+        return std::stoul(sym);
+      case 'f' :
+        return std::stof(sym);
+      case 'd' :
+        return std::stod(sym);
+      case 's' :
+        return sym;
+      default :
+        return std::nullopt;
+    }
+  }
 
   void Section::prase(std::string& next, std::ifstream& ifs) {
     auto [seq, name, sec] = prase_path(next);
-    if(sec == sections.end()) {
-      this->sections.emplace(std::move(name), Section{this->get_full_name(), next, ifs});
+    if(sec == _sections.end()) {
+      this->_sections.emplace(std::move(name), Section{this->get_full_name(), next, ifs});
       this->_update_flag = false;
     } else {
       if(seq == std::string::npos) {
@@ -112,7 +107,7 @@ namespace xcl {
   }
 
   bool Section::need_update() const {
-    return !this->_update_flag || std::any_of(this->sections.begin(), this->sections.end(), [](const auto& sec) {
+    return !this->_update_flag || std::any_of(this->_sections.begin(), this->_sections.end(), [](const auto& sec) {
       return sec.second.need_update();
     });
   }
@@ -123,13 +118,13 @@ namespace xcl {
   Section::prase_path(std::string_view path) {
     auto seq = path.find('\'');
     auto name = std::string(path.substr(0, seq));
-    return {seq, name, sections.find(name)};
+    return {seq, name, _sections.find(name)};
   }
   std::tuple<std::string_view::size_type, std::string, std::unordered_map<std::string, Section>::const_iterator>
   Section::prase_path(std::string_view path) const {
     auto seq = path.find('\'');
     auto name = std::string(path.substr(0, seq));
-    return {seq, name, sections.find(name)};
+    return {seq, name, _sections.find(name)};
   }
   void Section::set_name(std::string_view name) {
     this->_name = name;
@@ -148,7 +143,7 @@ namespace xcl {
   }
   std::optional<std::reference_wrapper<Section>> Section::find(std::string_view path) {
     auto [seq, _, sec] = prase_path(path);
-    if(sec == this->sections.end()) {
+    if(sec == this->_sections.end()) {
       return std::nullopt;
     } else if(seq == std::string::npos) {
       return sec->second;
@@ -161,7 +156,7 @@ namespace xcl {
   }
   std::optional<std::reference_wrapper<const Section>> Section::find(std::string_view path) const {
     auto [seq, _, sec] = prase_path(path);
-    if(sec == this->sections.end()) {
+    if(sec == this->_sections.end()) {
       return std::nullopt;
     } else if(seq == std::string::npos) {
       return sec->second;
@@ -170,8 +165,11 @@ namespace xcl {
     }
   }
   void Section::clear() {
+    if(this->_kvs.empty() && this->_sections.empty()) {
+      return;
+    }
     this->_kvs.clear();
-    this->sections.clear();
+    this->_sections.clear();
     this->_update_flag = false;
   }
   std::ostream& operator<<(std::ostream& os, const Section& sec) {
@@ -202,7 +200,7 @@ namespace xcl {
       os << std::endl;
     }
     os << std::endl;
-    for(auto& [key, value] : sec.sections) {
+    for(auto& [key, value] : sec._sections) {
       os << value;
     }
     sec._update_flag = true;
@@ -239,20 +237,8 @@ namespace xcl {
   }
 
   Xcl::Xcl(std::string_view path)
-    : Section()
-    , _full_path()
-    , _last_write_time() {
-    try {
-      this->_full_path = std::filesystem::absolute(path);
-    } catch(...) {
-      return;
-    }
-    auto status = std::filesystem::status(this->_full_path);
-    if(status.type() == std::filesystem::file_type::regular || status.type() == std::filesystem::file_type::symlink) {
-      // recursive_create(std::filesystem::path(path).parent_path());
-      this->_last_write_time = std::filesystem::last_write_time(this->_full_path);
-      this->prase_file();
-    }
+    : Section() {
+    this->load(path);
   }
   Xcl::~Xcl() {
     // std::ofstream ofs(this->get_name());
@@ -279,6 +265,7 @@ namespace xcl {
         this->_last_write_time = last_write_time;
         this->clear();
         this->prase_file();
+        this->_update_flag = true;
       }
     }
   }
